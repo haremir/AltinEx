@@ -1,87 +1,80 @@
 import sqlite3
 from sqlite3 import Error
 
-class Database:
-    def __init__(self, db_file="data/investment_app.db"):
-        """Veritabanı bağlantısını başlatır."""
-        self.db_file = db_file
-        self.conn = self.create_connection()
-
-    def create_connection(self):
-        """Veritabanı bağlantısını oluşturur."""
-        conn = None
-        try:
-            conn = sqlite3.connect(self.db_file)
-            print(f"Veritabanı bağlantısı başarılı: {self.db_file}")
-        except Error as e:
-            print(f"Veritabanı bağlantısı hatası: {e}")
+# Veritabanı bağlantısı oluşturma
+def create_connection(db_file):
+    conn = None
+    try:
+        conn = sqlite3.connect(db_file)
+        print(f"SQLite bağlantısı başarılı: {db_file}")
         return conn
+    except Error as e:
+        print(f"Hata: {e}")
+    return conn
 
-    def create_table(self):
-        """Kullanıcılar ve altın alımları için tablolar oluşturur."""
-        create_users_table = """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            isim TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            telefon TEXT
-        );
-        """
+# Tablo oluşturma
+def create_table(conn):
+    create_investments_table = """
+    CREATE TABLE IF NOT EXISTS investments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        gold_price REAL NOT NULL,
+        quantity REAL NOT NULL
+    );
+    """
+    create_users_table = """
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+    );
+    """
+    try:
+        c = conn.cursor()
+        c.execute(create_investments_table)
+        c.execute(create_users_table)
+        print("Tablolar başarıyla oluşturuldu.")
+    except Error as e:
+        print(f"Hata: {e}")
 
-        create_alim_table = """
-        CREATE TABLE IF NOT EXISTS alımlar (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            tarih TEXT NOT NULL,
-            miktar REAL NOT NULL,
-            fiyat REAL NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        );
-        """
+# Veritabanı bağlantısını ve tabloyu başlat
+def initialize_db():
+    database = "data/investment_app.db"
+    conn = create_connection(database)
+    if conn is not None:
+        create_table(conn)
+    else:
+        print("Veritabanı bağlantısı kurulamadı.")
+    return conn
 
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(create_users_table)
-            cursor.execute(create_alim_table)
-            self.conn.commit()
-            print("Tablolar başarıyla oluşturuldu.")
-        except Error as e:
-            print(f"Tablo oluşturma hatası: {e}")
+# Yatırım ekleme
+def add_investment(conn, amount, date, gold_price, quantity):
+    sql = """INSERT INTO investments(amount, date, gold_price, quantity)
+             VALUES(?,?,?,?)"""
+    cur = conn.cursor()
+    cur.execute(sql, (amount, date, gold_price, quantity))
+    conn.commit()
+    return cur.lastrowid
 
-    def add_user(self, isim, email, telefon):
-        """Yeni kullanıcı ekler."""
-        query = "INSERT INTO users (isim, email, telefon) VALUES (?, ?, ?)"
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(query, (isim, email, telefon))
-            self.conn.commit()
-            print(f"Kullanıcı {isim} başarıyla eklendi.")
-        except Error as e:
-            print(f"Kullanıcı eklerken hata oluştu: {e}")
+# Tüm yatırımları getirme
+def get_investments(conn):
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM investments")
+    rows = cur.fetchall()
+    return rows
 
-    def get_user(self, email):
-        """Email ile kullanıcıyı getirir."""
-        query = "SELECT * FROM users WHERE email = ?"
-        cursor = self.conn.cursor()
-        cursor.execute(query, (email,))
-        user = cursor.fetchone()
-        return user
+def register_user(conn, username, password):
+    sql = """INSERT INTO users(username, password)
+             VALUES(?,?)"""
+    cur = conn.cursor()
+    cur.execute(sql, (username, password))
+    conn.commit()
+    return cur.lastrowid
 
-    def add_alim(self, user_id, tarih, miktar, fiyat):
-        """Altın alımı kaydeder."""
-        query = "INSERT INTO alımlar (user_id, tarih, miktar, fiyat) VALUES (?, ?, ?, ?)"
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(query, (user_id, tarih, miktar, fiyat))
-            self.conn.commit()
-            print("Altın alımı başarıyla kaydedildi.")
-        except Error as e:
-            print(f"Altın alımı eklerken hata oluştu: {e}")
-
-    def get_alim_by_user(self, user_id):
-        """Belirli bir kullanıcı için yapılan alımları getirir."""
-        query = "SELECT * FROM alımlar WHERE user_id = ?"
-        cursor = self.conn.cursor()
-        cursor.execute(query, (user_id,))
-        alımlar = cursor.fetchall()
-        return alımlar
+def login_user(conn, username, password):
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
+    user = cur.fetchone()
+    return user
