@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from sqlite3 import Error
 
@@ -27,6 +28,10 @@ def create_table(conn):
     create_users_table = """
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT NOT NULL,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL
     );
@@ -42,37 +47,42 @@ def create_table(conn):
 # Veritabanı bağlantısını ve tabloyu başlat
 def initialize_db():
     database = "data/investment_app.db"
+    # data klasörü yoksa oluştur
+    os.makedirs(os.path.dirname(database), exist_ok=True)
     conn = create_connection(database)
     if conn is not None:
         create_table(conn)
+        print("Veritabanı başarıyla başlatıldı.")
     else:
-        print("Veritabanı bağlantısı kurulamadı.")
+        print("Hata: Veritabanı bağlantısı kurulamadı!")
     return conn
 
 # Yatırım ekleme
-def add_investment(conn, amount, date, gold_price, quantity):
-    sql = """INSERT INTO investments(amount, date, gold_price, quantity)
-             VALUES(?,?,?,?)"""
+def add_investment(conn, user_id, amount, date, gold_price, quantity):
+    sql = """INSERT INTO investments(user_id, amount, date, gold_price, quantity)
+             VALUES(?,?,?,?,?)"""
     cur = conn.cursor()
-    cur.execute(sql, (amount, date, gold_price, quantity))
+    cur.execute(sql, (user_id, amount, date, gold_price, quantity))
     conn.commit()
     return cur.lastrowid
 
 # Tüm yatırımları getirme
-def get_investments(conn):
+def get_investments(conn, user_id):
     cur = conn.cursor()
-    cur.execute("SELECT * FROM investments")
+    cur.execute("SELECT * FROM investments WHERE user_id = ?", (user_id,))
     rows = cur.fetchall()
     return rows
 
-def register_user(conn, username, password):
-    sql = """INSERT INTO users(username, password)
-             VALUES(?,?)"""
+# Kullanıcı kayıt
+def register_user(conn, first_name, last_name, email, phone, username, password):
+    sql = """INSERT INTO users(first_name, last_name, email, phone, username, password)
+             VALUES(?,?,?,?,?,?)"""
     cur = conn.cursor()
-    cur.execute(sql, (username, password))
+    cur.execute(sql, (first_name, last_name, email, phone, username, password))
     conn.commit()
     return cur.lastrowid
 
+# Kullanıcı giriş
 def login_user(conn, username, password):
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))

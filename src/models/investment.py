@@ -20,8 +20,8 @@ def calculate_profit(conn):
 
 def get_financial_summary(conn, user_id):
     investments = get_investments(conn, user_id)
-    total_investment = sum(inv[1] for inv in investments)
-    total_quantity = sum(inv[4] for inv in investments)
+    total_investment = sum(inv[2] for inv in investments)
+    total_quantity = sum(inv[5] for inv in investments)
     current_value = total_quantity * get_gold_price()
     total_profit = current_value - total_investment
     return {
