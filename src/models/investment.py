@@ -1,44 +1,62 @@
-from src.db.database import get_investments
+class Investment:
+    def __init__(self, db):
+        self.db = db
 
-# Güncel altın fiyatını al (API veya sabit bir değer)
-def get_gold_price():
-    # Burada API çağrısı yapılabilir. Şimdilik sabit bir değer döndürelim.
-    return 3500  # Örnek: 1200 TL/gram
+    def get_gold_price(self):
+        # API çağrısı veya sabit bir değer
+        return 3500  # Örnek: 3500 TL/gram
 
-# Kar/zarar hesapla
-def calculate_profit(conn):
-    investments = get_investments(conn)
-    total_profit = 0
-    current_gold_price = get_gold_price()  # Güncel altın fiyatı
-    for investment in investments:
-        amount = investment[1]
-        quantity = investment[4]
-        current_value = quantity * current_gold_price
-        profit = current_value - amount
-        total_profit += profit
-    return total_profit
+    def calculate_investment_profit(self, investment):
+        """
+        Tek bir yatırımın kar/zarar durumunu hesaplar.
+        :param investment: Yatırım bilgileri (amount, date, gold_price, quantity)
+        :return: Yatırımın bugünkü değeri, kar/zarar miktarı ve oranı
+        """
+        amount = investment[2]  # Yatırım miktarı
+        quantity = investment[5]  # Alınan altın miktarı
+        current_value = quantity * self.get_gold_price()  # Bugünkü değer
+        profit = current_value - amount  # Kar/zarar miktarı
+        profit_ratio = (profit / amount) * 100 if amount != 0 else 0  # Kar/zarar oranı
+        return current_value, profit, profit_ratio
 
-def get_financial_summary(conn, user_id):
-    investments = get_investments(conn, user_id)
-    total_investment = sum(inv[2] for inv in investments)
-    total_quantity = sum(inv[5] for inv in investments)
-    current_value = total_quantity * get_gold_price()
-    total_profit = current_value - total_investment
-    return {
-        "total_investment": total_investment,
-        "total_quantity": total_quantity,
-        "current_value": current_value,
-        "total_profit": total_profit
-    }
+    def get_individual_investment_analysis(self, user_id):
+        """
+        Kullanıcının her bir yatırımını ayrı ayrı analiz eder.
+        :param user_id: Kullanıcı ID'si
+        :return: Her bir yatırımın analiz sonuçları
+        """
+        investments = self.db.get_investments(user_id)
+        analysis = []
+        for inv in investments:
+            current_value, profit, profit_ratio = self.calculate_investment_profit(inv)
+            analysis.append({
+                "id": inv[0],  # Yatırım ID'si
+                "date": inv[3],  # Yatırım tarihi
+                "amount": inv[2],  # Yatırım miktarı
+                "gold_price": inv[4],  # Alınma kuru (TL/gram)
+                "quantity": inv[5],  # Alınan altın miktarı (gram)
+                "current_value": current_value,  # Bugünkü değer
+                "profit": profit,  # Kar/zarar miktarı
+                "profit_ratio": profit_ratio  # Kar/zarar oranı
+            })
+        return analysis
 
-def filter_investments(investments, start_date=None, end_date=None, profit_filter=None):
-    filtered = investments
-    if start_date:
-        filtered = [inv for inv in filtered if inv[2] >= start_date]
-    if end_date:
-        filtered = [inv for inv in filtered if inv[2] <= end_date]
-    if profit_filter == "Kar":
-        filtered = [inv for inv in filtered if (inv[4] * get_gold_price()) > inv[1]]
-    elif profit_filter == "Zarar":
-        filtered = [inv for inv in filtered if (inv[4] * get_gold_price()) < inv[1]]
-    return filtered
+    def get_total_investment_analysis(self, user_id):
+        """
+        Kullanıcının tüm yatırımlarını birleştirerek genel analiz yapar.
+        :param user_id: Kullanıcı ID'si
+        :return: Toplam yatırım analizi
+        """
+        investments = self.db.get_investments(user_id)
+        total_investment = sum(inv[2] for inv in investments)  # Toplam yatırım miktarı
+        total_quantity = sum(inv[5] for inv in investments)  # Toplam altın miktarı
+        current_value = total_quantity * self.get_gold_price()  # Bugünkü toplam değer
+        total_profit = current_value - total_investment  # Toplam kar/zarar
+        total_profit_ratio = (total_profit / total_investment) * 100 if total_investment != 0 else 0  # Toplam kar/zarar oranı
+        return {
+            "total_investment": total_investment,
+            "total_quantity": total_quantity,
+            "current_value": current_value,
+            "total_profit": total_profit,
+            "total_profit_ratio": total_profit_ratio
+        }
