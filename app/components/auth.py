@@ -12,11 +12,9 @@ def show_login_form(db):
                 st.sidebar.success(f"Hoş geldiniz, {user[1]}!")
                 st.session_state["logged_in"] = True
                 st.session_state["user_id"] = user[0]
-                # Sayfayı yeniden yükle
                 st.rerun()
             else:
                 st.sidebar.error("Geçersiz kullanıcı adı veya şifre!")
-                # Hata durumunda da yeniden yükleyebilirsiniz
                 st.rerun()
 
 def show_register_form(db):
@@ -33,11 +31,9 @@ def show_register_form(db):
             if password == confirm_password:
                 db.register_user(first_name, last_name, email, phone, username, password)
                 st.sidebar.success("Hesabınız başarıyla oluşturuldu!")
-                # Formu temizle
                 st.session_state["register_form_submitted"] = True
             else:
                 st.sidebar.error("Şifreler eşleşmiyor!")
-                # Hatalı kayıtta formu temizle
                 st.session_state["register_form_submitted"] = True
 
     # Form gönderildikten sonra metin alanlarını temizle

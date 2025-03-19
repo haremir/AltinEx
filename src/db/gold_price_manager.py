@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-from database import Database
+from src.db.database import Database
 import logging
 
 class GoldPriceManager:
@@ -10,33 +10,34 @@ class GoldPriceManager:
         self.db = Database(self.db_file)
 
     def fetch_gold_price(self):
-        """Web scraping ile altın fiyatını çeker ve veritabanına kaydeder."""
-        url = "https://www.goldprice.org/"
+        """Web scraping veya API ile altın fiyatını çeker ve veritabanına kaydeder."""
+        url = "https://bigpara.hurriyet.com.tr/altin/"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
         }
-
         try:
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()  # Hata durumunda exception fırlatır
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Altın fiyatını sayfadan çekme
-            gold_price_tag = soup.find("div", class_="gold-price")
+            gold_price_tag = soup.find("span", class_="value up")
             if gold_price_tag:
-                gold_price = gold_price_tag.text.strip().replace(",", "")  # Fiyatı düzelt
+                gold_price = gold_price_tag.text.strip().replace(",", ".")
                 gold_price = float(gold_price)
 
                 date = datetime.now().strftime('%Y-%m-%d')
-                self.db.add_gold_price(date, gold_price)  # Veritabanına kaydet
+                self.db.add_gold_price(date, gold_price)
                 logging.info(f"Altın fiyatı başarıyla alındı ve kaydedildi: {gold_price} ({date})")
+                return gold_price
             else:
                 logging.warning("Altın fiyatı sayfada bulunamadı.")
-
+                return None
         except requests.exceptions.RequestException as e:
             logging.error(f"Web kazıma hatası: {e}")
+            return None
         except Exception as e:
             logging.error(f"Genel hata: {e}")
+            return None
 
     def get_latest_gold_price(self):
         """Veritabanından en son altın fiyatını getirir."""
@@ -51,6 +52,3 @@ class GoldPriceManager:
     def close(self):
         """Veritabanı bağlantısını kapatır."""
         self.db.close()
-
-# Kullanım:
-# GoldPriceManager ile altın fiyatını çekip veritabanına kaydedebilirsiniz.

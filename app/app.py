@@ -1,18 +1,27 @@
 import sys
 import os
 import streamlit as st
+from datetime import datetime
 
 # Proje kök dizinini sys.path'e ekle
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.db.database import Database
 from src.models.investment import Investment
+from src.db.gold_price_manager import GoldPriceManager
 from components.auth import show_login_form, show_register_form
-from components.investment_ui import show_individual_investment_analysis, show_investment_form, show_financial_summary, show_monthly_profit_chart, show_total_investment_analysis
+from components.investment_ui import (
+    show_individual_investment_analysis,
+    show_investment_form,
+    show_financial_summary
+)
 
 # Veritabanı ve Investment sınıfını başlat
 db = Database("data/investment_app.db")
 investment = Investment(db)
+
+# GoldPriceManager'ı başlat
+gold_price_manager = GoldPriceManager("data/investment_app.db")
 
 # Ana uygulama
 def main():
@@ -50,7 +59,6 @@ def main():
                 st.session_state["user_id"] = None
                 st.session_state["show_profile"] = False
                 st.sidebar.success("Başarıyla çıkış yapıldı!")
-                # Sayfayı yenile
                 st.rerun()
 
             if st.session_state.get("show_profile"):
@@ -61,13 +69,42 @@ def main():
         st.warning("Lütfen giriş yapın veya kayıt olun.")
         st.stop()
 
+    # Güncel altın fiyatını güncelleme alanı
+    st.sidebar.subheader("Güncel Altın Fiyatını Güncelle")
+    current_gold_price = st.sidebar.number_input("Güncel Altın Fiyatı (TL/gram)", min_value=0.0, key="current_gold_price")
+    if st.sidebar.button("Fiyatı Güncelle"):
+        if current_gold_price > 0:
+            date = datetime.now().strftime('%Y-%m-%d')
+            db.add_gold_price(date, current_gold_price)
+            st.sidebar.success("Altın fiyatı başarıyla güncellendi!")
+        else:
+            st.sidebar.error("Geçerli bir fiyat giriniz.")
+
+    # Gerçek zamanlı altın fiyatını güncelle
+    if st.sidebar.button("Altın Fiyatını Otomatik Güncelle"):
+        fetched_price = gold_price_manager.fetch_gold_price()
+        if fetched_price:
+            st.sidebar.success(f"Altın fiyatı güncellendi: {fetched_price} TL/gram")
+        else:
+            st.sidebar.error("Altın fiyatı güncellenemedi. Lütfen internet bağlantınızı kontrol edin.")
+
+    # Güncel altın fiyatını göster
+    latest_gold_price = db.get_gold_price()
+    if latest_gold_price:
+        st.sidebar.write(f"**Güncel Altın Fiyatı:** {latest_gold_price[1]:.2f} TL/gram (Son Güncelleme: {latest_gold_price[0]})")
+    else:
+        st.sidebar.warning("Altın fiyatı bulunamadı. Lütfen altın fiyatını güncelleyin.")
+
     # Ana uygulama içeriği
     st.title("ALTINEX - ALTIN YATIRIM TAKIP UYGULAMASI")
-    show_investment_form(db, investment, st.session_state["user_id"])
-    show_individual_investment_analysis(investment, st.session_state["user_id"])
-    show_financial_summary(investment, st.session_state["user_id"])
-    show_total_investment_analysis(investment, st.session_state["user_id"])
-    show_monthly_profit_chart(investment, st.session_state["user_id"])
+
+    try:
+        show_investment_form(db, investment, st.session_state["user_id"])
+        show_financial_summary(investment, st.session_state["user_id"])
+        show_individual_investment_analysis(investment, st.session_state["user_id"])
+    except ValueError as e:
+        st.error(str(e))  # Hata mesajını kullanıcıya göster
+        st.warning("Lütfen altın fiyatını güncelleyin.")
 
 def show_profile(db, user_id):
     st.sidebar.subheader("Hesap Bilgileri")
@@ -77,23 +114,8 @@ def show_profile(db, user_id):
         st.sidebar.write(f"**Soyad:** {user[2]}")
         st.sidebar.write(f"**E-posta:** {user[3]}")
         st.sidebar.write(f"**Telefon Numarası:** {user[4]}")
-        if st.sidebar.button("Hesabımı Güncelle", key="update_profile"):
-            st.session_state["show_update_profile"] = True
-
-    if st.session_state.get("show_update_profile"):
-        show_update_profile_form(db, user_id)
-
-def show_update_profile_form(db, user_id):
-    st.sidebar.subheader("Hesap Bilgilerini Güncelle")
-    with st.sidebar.form(key="update_profile_form"):
-        first_name = st.text_input("Ad", key="update_first_name")
-        last_name = st.text_input("Soyad", key="update_last_name")
-        email = st.text_input("E-posta", key="update_email")
-        phone = st.text_input("Telefon Numarası", key="update_phone")
-        if st.form_submit_button("Güncelle"):
-            db.update_user(user_id, first_name, last_name, email, phone)
-            st.sidebar.success("Hesap bilgileriniz başarıyla güncellendi!")
-            st.session_state["show_update_profile"] = False
+        if st.sidebar.button("Geri Dön"):
+            st.session_state["show_profile"] = False
             st.rerun()
 
 if __name__ == "__main__":

@@ -1,10 +1,20 @@
+from src.db.gold_price_manager import GoldPriceManager
+
 class Investment:
     def __init__(self, db):
         self.db = db
+        self.gold_price_manager = GoldPriceManager("data/investment_app.db")
 
     def get_gold_price(self):
-        # API çağrısı veya sabit bir değer
-        return 3500  # Örnek: 3500 TL/gram
+        """
+        GoldPriceManager'dan güncel altın fiyatını çeker.
+        Eğer veritabanından fiyat çekilemezse, bir hata mesajı döndürür.
+        """
+        latest_price = self.db.get_gold_price()
+        if latest_price:
+            return latest_price[1]  # Fiyatı döndür
+        else:
+            raise ValueError("Veritabanından altın fiyatı çekilemedi. Lütfen altın fiyatını güncelleyin.")
 
     def calculate_investment_profit(self, investment):
         """
