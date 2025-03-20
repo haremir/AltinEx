@@ -35,23 +35,29 @@ def show_individual_investment_analysis(investment, user_id):
 
         # Filtreleme
         if filter_by == "Karda Olanlar":
-            df = df[df["Kar/Zarar (TL)"] > 0]
+            filtered_df = df[df["Kar/Zarar (TL)"] > 0]
         elif filter_by == "Zararda Olanlar":
-            df = df[df["Kar/Zarar (TL)"] < 0]
+            filtered_df = df[df["Kar/Zarar (TL)"] < 0]
+        else:
+            filtered_df = df
 
         # Sıralama
         if sort_by == "Tarih":
-            df = df.sort_values(by="Tarih", ascending=ascending)
+            filtered_df = filtered_df.sort_values(by="Tarih", ascending=ascending)
         elif sort_by == "Kar/Zarar Miktarı":
-            df = df.sort_values(by="Kar/Zarar (TL)", ascending=ascending)
+            filtered_df = filtered_df.sort_values(by="Kar/Zarar (TL)", ascending=ascending)
         elif sort_by == "Kar/Zarar Oranı":
-            df = df.sort_values(by="Kar/Zarar Oranı (%)", ascending=ascending)
+            filtered_df = filtered_df.sort_values(by="Kar/Zarar Oranı (%)", ascending=ascending)
 
         # Detaylı bilgiler
         st.subheader("Detaylı Bilgiler")
-        for index, row in df.iterrows():
-            color = "green" if row["Kar/Zarar (TL)"] > 0 else "red"
-            with st.expander(f"{row['Tarih'].strftime('%d %B %Y').upper()} - YATIRIM DETAYI", expanded=False):
+        for index, row in filtered_df.iterrows():
+            color = "green" if row["Kar/Zarar (TL)"] > 0 else ("red" if row["Kar/Zarar (TL)"] < 0 else "black")
+            title = f"{row['Tarih'].strftime('%d %B %Y').replace('January', 'OCAK').replace('February', 'ŞUBAT').replace('March', 'MART').replace('April', 'NİSAN').replace('May', 'MAYIS').replace('June', 'HAZİRAN').replace('July', 'TEMMUZ').replace('August', 'AĞUSTOS').replace('September', 'EYLÜL').replace('October', 'EKİM').replace('November', 'KASIM').replace('December', 'ARALIK')} - YATIRIM DETAYI"
+            
+            # Başlık renklendirme
+            st.markdown(f"<span style='color: {color}'>{title}</span>", unsafe_allow_html=True)
+            with st.expander("Detayları Göster", expanded=False):
                 st.write(f"""
                 **Yatırım Miktarı:** {row['Yatırım Miktarı (TL)']:.2f} TL  
                 **Alınan Altın Miktarı:** {row['Alınan Altın Miktarı (gram)']:.2f} gram  
@@ -60,7 +66,7 @@ def show_individual_investment_analysis(investment, user_id):
                 **Kar/Zarar Oranı:** <span style="color: {color}">{row['Kar/Zarar Oranı (%)']:.2f}%</span>
                 """, unsafe_allow_html=True)
 
-        # Grafik
+        # Grafik (filtrelemeden etkilenmeyecek)
         st.subheader("Yatırım Bazlı Kar/Zarar Grafiği")
         st.line_chart(df.set_index("Tarih")["Kar/Zarar (TL)"])
         st.write("X Ekseni: Tarih")
@@ -71,7 +77,7 @@ def show_individual_investment_analysis(investment, user_id):
 def show_financial_summary(investment, user_id):
     st.subheader("Genel Finansal Özet")
     summary = investment.get_total_investment_analysis(user_id)
-    color = "green" if summary["total_profit"] > 0 else "red"
+    color = "green" if summary["total_profit"] > 0 else ("red" if summary["total_profit"] < 0 else "black")
     st.write(f"""
     **Toplam Yatırım:** {summary["total_investment"]:.2f} TL  
     **Toplam Altın Miktarı:** {summary["total_quantity"]:.2f} gram  
